@@ -33,7 +33,7 @@ class riscv_random_all_test extends riscv_test_base;
 
     task main_phase(uvm_phase phase);
         super.main_phase(phase);
-        seq0.randomize();
+        void'(seq0.randomize());
         seq0.start(null);
         dump_mem_to_file();
     endtask: main_phase

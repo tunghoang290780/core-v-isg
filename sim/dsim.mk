@@ -18,15 +18,21 @@
 # DSIM-specific Makefile for the CORE-V Instruction Set Generator.
 ###############################################################################
 
-DSIM                    = dsim
-DSIM_HOME              ?= /tools/Metrics/dsim
-DSIM_CMP_FLAGS         ?= $(TIMESCALE) $(SV_CMP_FLAGS)
-DSIM_CMP_WARN          ?= -warn InvalidWildMethod
-DSIM_UVM_ARGS          ?= +incdir+$(UVM_HOME)/src $(UVM_HOME)/src/uvm_pkg.sv
-DSIM_RESULTS           ?= $(PWD)/dsim_results
-DSIM_WORK              ?= $(DSIM_RESULTS)/dsim_work
-DSIM_IMAGE             ?= dsim.out
-DSIM_RUN_FLAGS         ?=
+DSIM               = dsim
+DSIM_HOME         ?= /tools/Metrics/dsim
+DSIM_CMP_FLAGS    ?= $(TIMESCALE) $(SV_CMP_FLAGS)
+DSIM_CMP_WARN     ?= -warn InvalidWildMethod
+DSIM_UVM_ARGS     ?= +incdir+$(UVM_HOME)/src $(UVM_HOME)/src/uvm_pkg.sv
+DSIM_RESULTS      ?= $(PWD)/dsim_results
+DSIM_WORK         ?= $(DSIM_RESULTS)/dsim_work
+DSIM_IMAGE        ?= dsim.out
+DSIM_RUN_FLAGS    ?= +UVM_MAX_QUIT_COUNT=50
+DSIM_RUN_LOG      ?= run.log
+TEST_NAME         ?= riscv_random_all_test
+SEED              ?= 0
+UVM_VERBOSITY     ?= UVM_LOW
+GEN_INST_NUM      ?= 1000
+DSIM_RUN_ARGS     ?=
 
 # Variables to control wave dumping from command the line
 # Humans _always_ forget the "S", so you can have it both ways...
@@ -65,6 +71,7 @@ mk_results:
 	mkdir -p $(DSIM_WORK)
 
 # DSIM compile target
+# TODO: create a proper manifest
 comp: mk_results
 	$(DSIM) \
 		$(DSIM_CMP_FLAGS) \
@@ -76,16 +83,37 @@ comp: mk_results
 		+incdir+../parameter \
 		+incdir+../sequence \
 		+incdir+../transaction \
+		+incdir+../test \
 		./CV32E40P_macros.sv \
 		../transaction/riscv_txn_pkg.sv \
 		../memory/riscv_memory_pkg.sv \
 		../parameter/riscv_params.sv \
 		../sequence/riscv_base_seq.sv \
 		../sequence/riscv_random_all_seq.sv \
+		../test/riscv_test_base.sv \
+		../test/riscv_random_all_test.sv \
+		../test/riscv_gen_top.sv \
 		-work $(DSIM_WORK) \
 		+$(UVM_PLUSARGS) \
 		-genimage $(DSIM_IMAGE)
 
+run: comp
+	mkdir -p $(DSIM_RESULTS)/$(TEST_NAME)  && \
+	cd       $(DSIM_RESULTS)/$(TEST_NAME)  && \
+	$(DSIM) \
+		-l $(DSIM_RUN_LOG) \
+		-image $(DSIM_IMAGE) \
+		-work $(DSIM_WORK) \
+		-sv_lib $(UVM_HOME)/src/dpi/libuvm_dpi.so \
+		$(DSIM_RUN_ARGS) \
+		$(DSIM_RUN_FLAGS) \
+		+UVM_TESTNAME=$(TEST_NAME) \
+		+ntb_random_seed=$(SEED) \
+		+UVM_VERBOSITY=$(UVM_VERBOSITY) \
+		+MAXLEN=$(GEN_INST_NUM) \
+		+MINLEN=$(GEN_INST_NUM)
+
 clean_all:
 	rm -rf $(DSIM_RESULTS)
 	rm -f dsim.env dsim.log
+
